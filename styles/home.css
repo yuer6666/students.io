@@ -52,6 +52,10 @@
 	margin-bottom: 1rem;
 }
 
+.basic-grey .question-content {
+	padding: 1rem;
+}
+
 .basic-grey .section-title {
 	font-size: 2rem;
 	background: #d8e7fa;

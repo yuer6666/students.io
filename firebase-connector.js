@@ -1,8 +1,6 @@
 import { getDatabase, ref, set, update, child, get, onValue, remove } from 'https://www.gstatic.com/firebasejs/9.6.4/firebase-database.js'
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.6.4/firebase-app.js'
 const firebaseConfig = {
-    // ...
-    // The value of `databaseURL` depends on the location of the database
     "type": "service_account",
     "project_id": "student-questions-3b9de",
     "private_key_id": "a75c05a2aadacdfb9fc99735e74f18d0d29bab8c",
@@ -13,19 +11,39 @@ const firebaseConfig = {
     "token_uri": "https://oauth2.googleapis.com/token",
     "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
     "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/firebase-adminsdk-zx63p%40student-questions-3b9de.iam.gserviceaccount.com",
-    // databaseURL: "https://map-project-232803-default-rtdb.firebaseio.com"
     databaseURL: "https://student-questions-3b9de-default-rtdb.firebaseio.com"
-
 };
 
 // Initialize Firebase
-const app = initializeApp(firebaseConfig);
+function initDB() {
+    const app = initializeApp(firebaseConfig);
+    const dbRef = ref(getDatabase(app))
+    window.db = getDatabase(app)
+    window.dbRef = dbRef
+}
 
+// init db when page loaded
+document.addEventListener('DOMContentLoaded', async function () {
+    console.log('dbRef', window.dbRef)
+    if (!window.dbRef) {
+        initDB()
+    }
+    const form = document.querySelector('.basic-grey')
+    // fetch questions from firebase
+    const questions = await getRecords()
+    window.questions = questions
+    const path = getCurrentPagePath()
+    if (path.includes('reading')) {
+        loadReadingData()
+    } else if (path.includes('grammar')) {
+        loadGrammarData()
+    } else if (path.includes('vocabulary')) {
+        loadVocabularyData()
+    }
+    addSumbitButtonListener()
+});
 
-// Initialize Realtime Database and get a reference to the service
-const dbRef = ref(getDatabase(app))
-
-get(child(dbRef, `users`)).then((snapshot) => {
+get(child(window.dbRef, `users`)).then((snapshot) => {
     if (snapshot.exists()) {
         console.log(snapshot.val());
     } else {
@@ -35,13 +53,175 @@ get(child(dbRef, `users`)).then((snapshot) => {
     console.error(error);
 });
 
-// function writeUserData() {
-//     const db = getDatabase();
-//     set(ref(db, 'questions/' + 'json'), {
-//         question: 'teste',
-//         image: 'test',
-//         answer: 'aa'
-//     });
-// }
+function getRecords() {
+    return new Promise((resolve, reject) => {
+        get(child(window.dbRef, `questions`)).then((snapshot) => {
+            if (snapshot.exists()) {
+                resolve(snapshot.val())
+            } else {
+                reject('No data available')
+            }
+        }).catch((error) => {
+            console.error(error);
+        });
+    })
+}
 
-// writeUserData()
+function setRecords(username, module, answer) {
+    return new Promise((resolve, reject) => {
+        set(ref(window.db, 'user-answers/' + username), {
+            module: module,
+            answer: answer
+        }).then(() => {
+            resolve()
+        }).catch(() => {
+            reject()
+        })
+    })
+}
+
+function getCurrentPagePath() {
+    const url = document.location.toString();
+    const arrUrl = url.split("//");
+
+    const start = arrUrl[1].indexOf("/");
+    let relUrl = arrUrl[1].substring(start);//stop省略，截取从start开始到结尾的所有字符
+
+    if (relUrl.indexOf("?") != -1) {
+        relUrl = relUrl.split("?")[0];
+    }
+    return relUrl
+}
+
+function loadReadingData() {
+    loadData(window.questions.module1)
+    window.module = 1
+}
+
+function loadGrammarData() {
+    loadData(window.questions.module2)
+    window.module = 2
+}
+
+function loadVocabularyData() {
+    loadData(window.questions.module3)
+    window.module = 3
+}
+
+
+function loadData(data) {
+    let questions = document.querySelector('.questions')
+    const grammarQuestions = data
+    console.log({ grammarQuestions })
+    let innerHtml = ''
+    window.feedback = {}
+    Object.keys(grammarQuestions).forEach((item, index) => {
+        const { question, answer, feedback } = grammarQuestions[item]
+        const currentIndex = index + 1
+        let options = []
+        innerHtml += `<div class="title">Q${currentIndex}. ${question}</div>`
+        if (answer?.type === 'checkbox') {
+            options = answer.content.split(';')
+            console.log({ options })
+            innerHtml += `<div id="question-${currentIndex}">`
+            options.forEach((option, index) => {
+                let str = "A";
+                innerHtml += `<label class="checkbox"><input name="radio${currentIndex}" type="radio" value=${option} />${String.fromCharCode(str.charCodeAt() + index)}.${option}</label>`
+            })
+            innerHtml += '</div>'
+            if ([1, 2].includes(currentIndex)) {
+                window.feedback['q' + currentIndex] = feedback
+                innerHtml += `<div class="feedback feedback${currentIndex}"></div>`
+            }
+        } else if (answer?.type === 'text') {
+            window.feedback['q' + currentIndex] = feedback
+            innerHtml += `<textarea id="question-${currentIndex}" cols=60 rows=10 name=text></textarea>`
+            if ([1, 2].includes(currentIndex)) {
+                innerHtml += `<div class="feedback feedback${currentIndex}"></div>`
+            }
+        }
+
+    })
+    questions.innerHTML = innerHtml
+    addEventListenerToQ12()
+}
+
+function addEventListenerToQ12() {
+    const q1 = document.querySelector('#question-1')
+    const q2 = document.querySelector('#question-2')
+    const q3 = document.querySelector('#question-3')
+    const q4 = document.querySelector('#question-4')
+    const q5 = document.querySelector('#question-5')
+    window.questionAnswer = { q1: '', q2: '', q3: '', q4: '', q5 }
+    q1.addEventListener('change', function (event) {
+        const { value, type } = event.target
+        if (value) {
+            const feedback = document.querySelector('.feedback1')
+            if (feedback) feedback.innerHTML = `<div class="feedback">Feedback: ${window.feedback['q1']}</div>`
+            window.questionAnswer['q1'] = value
+        }
+        console.log(window.questionAnswer['q1'])
+    })
+
+    q2.addEventListener('change', function (event) {
+        console.log('---------')
+        const { value, type } = event.target
+        if (value) {
+            const feedback = document.querySelector('.feedback2')
+            feedback.innerHTML = `<div class="feedback">Feedback: ${window.feedback['q2']}</div>`
+            window.questionAnswer['q2'] = value
+        }
+    })
+    q3.addEventListener('change', function (event) {
+        const { value, type } = event.target
+        if (value)
+            window.questionAnswer['q3'] = value
+    })
+    q4.addEventListener('change', function (event) {
+        const { value, type } = event.target
+        if (value)
+            window.questionAnswer['q4'] = value
+    })
+    q5.addEventListener('change', function (event) {
+        const { value, type } = event.target
+        if (value)
+            window.questionAnswer['q5'] = value
+    })
+}
+
+
+function addSumbitButtonListener() {
+    const sumbitBtn = document.querySelector('#submit')
+    sumbitBtn.addEventListener('click', async function (event) {
+        let filledAll = true
+        console.log(window.questionAnswer)
+        Object.keys(window.questionAnswer).some(item => {
+            if (!window.questionAnswer[item]) {
+                filledAll = false
+                return true
+            }
+        })
+        if (!filledAll) {
+            alert('Please fill in all the questions')
+            return
+        } else {
+            const name = prompt("What's your name")
+            if (name) {
+                try {
+                    await setRecords(name, window.module, window.questionAnswer)
+                } catch (error) {
+                    console.log('error', error)
+                }
+                sumbitBtn.style = 'display:none'
+                const questions = document.querySelector('.questions')
+                questions.style = 'display: none'
+                const teacher = document.querySelector('.teacher')
+                const currentModule = window.questions['module' + window.module]
+                Object.keys(currentModule).forEach((item, index) => {
+                    teacher.innerHTML += `<div class="title">${'Q' + (index + 1) + '. ' + currentModule[item].question}</div><div><span style="font-weight: bold;">Student Answer: </span>${window.questionAnswer[item]}</div>`
+                })
+            }
+        }
+    })
+
+}

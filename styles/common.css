@@ -110,3 +110,51 @@ p {
 .flex {
 	display: flex;
 }
+
+.mb-sm {
+	margin-bottom: 6px;
+}
+
+.mr-sm {
+	margin-right: 6px;
+}
+
+.questions {
+	width: 80%;
+	margin: 0 auto;
+}
+
+.teacher {
+	width: 80%;
+	margin: 0 auto;
+}
+
+.title {
+	font-size: 1.5rem;
+	margin-top: 1rem;
+}
+
+.checkbox {
+	margin-right: 2rem;
+}
+
+.textarea {
+	width: 32rem;
+	height: 6rem;
+}
+
+.submit-btn {
+	width: 80%;
+	margin: 0 auto;
+	margin-top: 1rem;
+	margin-bottom: 1rem;
+}
+
+.submit-btn button {
+	height: 2rem;
+	width: 4rem;
+}
+
+.hide {
+	display: none;
+}
